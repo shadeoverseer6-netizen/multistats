@@ -96,7 +96,7 @@
     const SUPABASE_URL = "afkzeycrqgcsjbaqnxil";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFma3pleWNycWdjc2piYXFueGlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4MDAyNzIsImV4cCI6MjEwNjM3NjI3Mn0.uh0SROYOCvNdn_xuhrInleUtt0JYeyRDmorN36VSkv0";
 
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // Fetch and show shared logs from database
     async function fetchLogs() {
