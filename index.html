@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gym Crew Shared Board</title>
+    <!-- Load the official Supabase library -->
+    <script src="https://jsdelivr.net"></script>
+    <style>
+        :root {
+            --bg: #090d16;
+            --card: #131926;
+            --accent: #3b82f6;
+            --accent-success: #10b981;
+            --text: #f8fafc;
+            --text-muted: #64748b;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container { max-width: 700px; width: 100%; }
+        h1 { text-align: center; color: var(--accent); margin-bottom: 4px; }
+        p.subtitle { text-align: center; color: var(--text-muted); margin-top: 0; margin-bottom: 24px; }
+        .grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        @media (min-width: 600px) { .grid { grid-template-columns: 1fr 1fr; } }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid #1e293b; height: fit-content; }
+        h2 { font-size: 1.2rem; margin-top: 0; margin-bottom: 16px; border-bottom: 1px solid #1e293b; padding-bottom: 8px; }
+        .form-group { margin-bottom: 12px; }
+        label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px; }
+        input { width: 100%; padding: 8px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: white; box-sizing: border-box; }
+        .inline-inputs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        button { width: 100%; background: var(--accent-success); color: white; border: none; padding: 10px; font-weight: bold; border-radius: 6px; cursor: pointer; margin-top: 10px; }
+        button:hover { opacity: 0.9; }
+        .log-item { background: #0f172a; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--accent); }
+        .log-header { display: flex; justify-content: space-between; font-weight: bold; font-size: 0.95rem; }
+        .log-meta { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+        .log-stat { font-size: 1.1rem; font-weight: bold; color: #fff; margin-top: 8px; }
+        #logs-list { max-height: 500px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🏋️‍♂️ Gym Crew Shared Board</h1>
+    <p class="subtitle">Log your heavy lifts and track stats with the boys</p>
+
+    <div class="grid">
+        <!-- LEFT COLUMN: INPUT FORM -->
+        <div class="card">
+            <h2>Log Your Session</h2>
+            <form id="workout-form">
+                <div class="form-group">
+                    <label>Your Name</label>
+                    <input type="text" id="user-name" required placeholder="e.g., Amine">
+                </div>
+                <div class="form-group">
+                    <label>Your Stats (Age / Height cm / Weight kg)</label>
+                    <div class="inline-inputs">
+                        <input type="number" id="user-age" placeholder="Age">
+                        <input type="number" id="user-height" placeholder="cm">
+                        <input type="number" id="user-weight" placeholder="kg">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top: 16px;">
+                    <label>Exercise / Lift</label>
+                    <input type="text" id="lift-name" required placeholder="e.g., Bench Press, Squat">
+                </div>
+                <div class="form-group">
+                    <label>Weight (kg) & Reps</label>
+                    <div class="inline-inputs" style="grid-template-columns: 1fr 1fr;">
+                        <input type="number" id="lift-weight" required placeholder="Weight (kg)">
+                        <input type="number" id="lift-reps" required placeholder="Reps">
+                    </div>
+                </div>
+                <button type="submit">Publish to Leaderboard</button>
+            </form>
+        </div>
+
+        <!-- RIGHT COLUMN: GLOBAL LEADERBOARD -->
+        <div class="card">
+            <h2>Global Live Logs</h2>
+            <div id="logs-list">Loading real-time stats...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ⚠️ REPLACE THESE WITH YOUR EXACT SUPABASE CREDENTIALS FROM STEP 1
+    const SUPABASE_URL = "afkzeycrqgcsjbaqnxil";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFma3pleWNycWdjc2piYXFueGlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4MDAyNzIsImV4cCI6MjEwNjM3NjI3Mn0.uh0SROYOCvNdn_xuhrInleUtt0JYeyRDmorN36VSkv0";
+
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Fetch and show shared logs from database
+    async function fetchLogs() {
+        const { data, error } = await supabase
+            .from('workouts')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            document.getElementById('logs-list').innerText = "Error loading data.";
+            console.error(error);
+            return;
+        }
+
+        const list = document.getElementById('logs-list');
+        if (data.length === 0) {
+            list.innerText = "No workouts logged yet. Be the first!";
+            return;
+        }
+
+        list.innerHTML = data.map(log => `
+            <div class="log-item">
+                <div class="log-header">
+                    <span>👤 ${log.name}</span>
+                    <span style="color: var(--accent);">${log.exercise}</span>
+                </div>
+                <div class="log-meta">
+                    ${log.age ? log.age+'yo' : ''} | ${log.height ? log.height+'cm' : ''} | ${log.weight ? log.weight+'kg bodyweight' : ''}
+                </div>
+                <div class="log-stat">
+                    💪 ${log.lift_weight} kg × ${log.reps} reps
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Handle form submission to push to database
+    document.getElementById('workout-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const payload = {
+            name: document.getElementById('user-name').value,
+            age: document.getElementById('user-age').value || null,
+            height: document.getElementById('user-height').value || null,
+            weight: document.getElementById('user-weight').value || null,
+            exercise: document.getElementById('lift-name').value,
+            lift_weight: document.getElementById('lift-weight').value,
+            reps: document.getElementById('lift-reps').value
+        };
+
+        const { error } = await supabase.from('workouts').insert([payload]);
+
+        if (error) {
+            alert("Failed to submit data!");
+            console.error(error);
+        } else {
+            // Clear workout details but keep profile info handy for quick logging later
+            document.getElementById('lift-name').value = '';
+            document.getElementById('lift-weight').value = '';
+            document.getElementById('lift-reps').value = '';
+            fetchLogs(); // refresh display
+        }
+    });
+
+    // Auto load data on open
+    fetchLogs();
+</script>
+</body>
+</html>
